@@ -13,8 +13,6 @@
 * `whitelistChannels` - list of channels to listen to
 * `whitelistCategories` - list of categories to listen to
 
-> bot will listen to all channels and categories in `whitelistChannels` and `whitelistCategories`
-
 * `destinationServerId` - id of server to mirror to
 * `destinationServerOwnerToken` - token of server owner (for permissions)
 
