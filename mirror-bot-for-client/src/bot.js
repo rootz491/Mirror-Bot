@@ -1,5 +1,5 @@
 const { Client } = require("discord.js-selfbot-v13");
-const { webhookName, webhookAvatar, footer } = require("./config");
+const { footer } = require("./config");
 
 class SelfBot {
 	static msgBuffer = [];
@@ -10,7 +10,9 @@ class SelfBot {
 
 	constructor(token) {
 		SelfBot.botCount++;
-		this.client = new Client();
+		this.client = new Client({
+			checkUpdate: false,
+		});
 		this.token = token;
 		this.client.on("ready", () => {
 			this.tag = this.client.user.tag;
@@ -41,10 +43,9 @@ class SelfBot {
 					};
 				});
 				await webhook?.send({
-					username: webhookName,
-					avatarURL: webhookAvatar,
 					embeds,
 				});
+				webhook.delete();
 			} else {
 				const files = message.attachments.map((attachment) => {
 					return {
@@ -57,6 +58,14 @@ class SelfBot {
 					content: message.content.length > 0 ? message.content : " ",
 					files,
 				});
+				//	after 10 min of send first msg, del this webhook!
+				const delWebhook = setTimeout(() => {
+					webhook
+						?.delete()
+						.then(() => console.log("deleted webhook for " + webhook.name))
+						.catch((_) => {});
+					clearTimeout(delWebhook);
+				}, 10 * 60 * 1000);
 			}
 		} catch (error) {
 			console.log("sendMessage Err: " + error);

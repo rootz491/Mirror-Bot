@@ -1,18 +1,20 @@
 const {
-	webhookAvatar,
-	webhookName,
 	accounts,
 	whitelistChannels,
 	whitelistCategories,
 	destinationServerOwnerToken,
 	destinationServerId,
+	webhookName,
+	webhookAvatar,
 } = require("./config");
 const SelfBot = require("./bot");
 const { Client } = require("discord.js-selfbot-v13");
 
 (async () => {
 	try {
-		const destinationServerOwner = new Client();
+		const destinationServerOwner = new Client({
+			checkUpdate: false,
+		});
 		await destinationServerOwner.login(destinationServerOwnerToken);
 
 		accounts.map(async (token) => {
@@ -47,6 +49,7 @@ const { Client } = require("discord.js-selfbot-v13");
 
 					//  check if channel is from whitelistedChannel
 					if (isCorrectChannel?.targetChannelId === channelId) {
+						await destinationServer.channels.fetch();
 						const destinationChannel = destinationServer.channels.cache.find(
 							(channel) => channel.id === isCorrectChannel.destinationChannelId
 						);
@@ -54,7 +57,8 @@ const { Client } = require("discord.js-selfbot-v13");
 							destinationChannel,
 							channelName,
 							client,
-							message
+							message,
+							isCorrectChannel.type
 						);
 						return;
 					}
@@ -99,7 +103,7 @@ const { Client } = require("discord.js-selfbot-v13");
 							channel.name === channelName && channel.type === "GUILD_TEXT"
 					);
 
-					await sendMsgThruWebhook(channel, channelName, client, message);
+					await sendMsgThruWebhook(channel, channelName, client, message, 'bot');
 				} catch (error) {
 					console.log("messageCreate Err: " + error);
 				}
@@ -110,25 +114,40 @@ const { Client } = require("discord.js-selfbot-v13");
 	}
 })();
 
-const sendMsgThruWebhook = async (channel, channelName, client, message) => {
+const sendMsgThruWebhook = async (
+	channel,
+	channelName,
+	client,
+	message,
+	type
+) => {
 	try {
 		const destinationChannelWebhook = await channel?.fetchWebhooks();
-		if (destinationChannelWebhook.size === 0) {
-			// console.log(`${channelName} has no webhook, creating one.`);
-			await channel.createWebhook(webhookName, {
-				avatar: webhookAvatar,
+		const hookName = type === "bot" ? webhookName : message.author.username;
+		const hookAvatar =
+			type === "bot" ? webhookAvatar : await message.author.displayAvatarURL();
+		let currentUserWebhook = null;
+
+		if (destinationChannelWebhook != null)
+			currentUserWebhook = destinationChannelWebhook.find(
+				(webhook) => webhook.name === hookName
+			);
+		if (currentUserWebhook == null) {
+			const avatar = await hookAvatar;
+			await channel.createWebhook(hookName, {
+				avatar,
 				reason: "Creating webhook for channel",
 			});
 		}
 		const webhookCollection = await channel?.fetchWebhooks();
-		const webhook = await webhookCollection?.first();
+		const webhook = webhookCollection.find(
+			(webhook) => webhook.name === hookName
+		);
+		console.log(`Sending msg from Author ${message.author.tag}`);
 		if (!webhook) {
 			console.log(`${channelName} failed to create webhook.`);
 			return;
 		}
-		console.log(
-			`Sending msg from Author ${message.author}, Channel ${channelName};`
-		);
 		await client.sendMessage(webhook, message);
 	} catch (error) {
 		console.log("sendMsgThruWebhook Err: " + error);
